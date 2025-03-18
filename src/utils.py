@@ -509,7 +509,13 @@ def compute_trajectory_source_to_sink(trajectory, source, sink):
 
 
 def compute_binned_values(
-    x_values, y_values, n_bins, min_v=None, max_v=None, equal_frequency=False
+    x_values,
+    y_values,
+    n_bins,
+    min_v=None,
+    max_v=None,
+    equal_frequency=False,
+    bin_outliers=False,
 ) -> tuple:
     """Compute binned values of y_values with respect to x_values
 
@@ -527,6 +533,8 @@ def compute_binned_values(
         The number of bins
     equal_frequency : bool
         If True, the bins will have equal frequency
+    bin_outliers : bool
+        If True, the outliers will be binned
 
     Returns
     -------
@@ -562,20 +570,41 @@ def compute_binned_values(
     bin_centers = 0.5 * (pdf_edges[0:-1] + pdf_edges[1:])
     indices = np.digitize(x_values, pdf_edges) - 1
 
-    means = np.full(n_bins, np.nan)
-    stds = np.full(n_bins, np.nan)
-    errors = np.full(n_bins, np.nan)
+    means_x = np.full(n_bins, np.nan)
+    stds_x = np.full(n_bins, np.nan)
+    errors_x = np.full(n_bins, np.nan)
+
+    means_y = np.full(n_bins, np.nan)
+    stds_y = np.full(n_bins, np.nan)
+    errors_y = np.full(n_bins, np.nan)
     n_values = np.zeros(n_bins)
 
     for i in range(n_bins):
+        # print(pdf_edges[i], pdf_edges[i + 1])
+        # print(x_values[indices == i])
+        # print(np.nanmean(x_values[indices == i]))
         if np.sum(indices == i) == 0:
             continue
-        means[i] = np.nanmean(y_values[indices == i])
-        stds[i] = np.nanstd(y_values[indices == i])
-        errors[i] = stds[i] / np.sqrt(np.sum(indices == i))
+        means_y[i] = np.nanmean(y_values[indices == i])
+        stds_y[i] = np.nanstd(y_values[indices == i])
+        errors_y[i] = stds_y[i] / np.sqrt(np.sum(indices == i))
         n_values[i] = np.sum(indices == i)
 
-    return bin_centers, pdf_edges, means, stds, errors, n_values
+        means_x[i] = np.nanmean(x_values[indices == i])
+        stds_x[i] = np.nanstd(x_values[indices == i])
+        errors_x[i] = stds_x[i] / np.sqrt(np.sum(indices == i))
+
+    return (
+        bin_centers,
+        pdf_edges,
+        means_y,
+        stds_y,
+        errors_y,
+        means_x,
+        stds_x,
+        errors_x,
+        n_values,
+    )
 
 
 def transform_trajectories_to_reference_frame(
@@ -664,7 +693,7 @@ def transform_trajectories_to_reference_frame(
 
 
 def filter_bad_trajectories(
-    trajectories, cell_size, min_n_trajectories_bad, ratio_bad_cells
+    trajectories, ids, cell_size, min_n_trajectories_bad, ratio_bad_cells
 ):
     """Filter out the bad trajectories
 
@@ -672,6 +701,8 @@ def filter_bad_trajectories(
     ----------
     trajectories : np.ndarray
         The list of trajectories
+    ids : np.ndarray
+        The ids of the trajectories
     cell_size : float
         The size of the cells for the spatial binning
     min_n_trajectories_bad : int
@@ -725,6 +756,7 @@ def filter_bad_trajectories(
     )
 
     good_trajectories = []
+    good_ids = []
     for i, trajectory in enumerate(trajectories):
         count_bad_cells = np.sum(grid[mask_grid_cells_few_trajectories, i])
         total_cells = np.sum(grid[:, :, i])
@@ -733,10 +765,11 @@ def filter_bad_trajectories(
 
         if ratio_bad < ratio_bad_cells:
             good_trajectories.append(trajectory)
+            good_ids.append(ids[i])
 
     good_trajectories = np.array(good_trajectories)
 
-    return good_trajectories
+    return good_trajectories, good_ids
 
 
 def compute_distance(source, sink):

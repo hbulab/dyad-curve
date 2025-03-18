@@ -173,7 +173,9 @@ RATIO_BAD_CELLS = 0.05
 
 # ---------- curvature ----------
 WINDOW_SIZE = 20  # window size for smoothing
-
+TURNING_X_MIN = 20000
+TURNING_X_MAX = 40000
+CURVATURE_THRESHOLD = 0.0005
 
 # ---------- plotting ----------
 N_BINS = 16

@@ -15,22 +15,17 @@ from utils import (
     transform_trajectories_to_reference_frame,
     compute_center_of_mass_trajectory,
     compute_distance,
-    filter_bad_trajectories,
     compute_average_interpersonal_distance,
 )
 
 from parameters import (
     SOURCES_DIAMOR,
-    MIN_N_TRAJECTORIES,
     SIZE_BIN,
-    CELL_SIZE,
-    MIN_TRAJECTORIES_BAD,
-    RATIO_BAD_CELLS,
     TURN_TYPE_DIAMOR,
 )
 
 
-def find_inner_outer(trajectory_1, trajectory_2, turn_type):
+def find_inner_outer(trajectory_1, trajectory_2, id_1, id_2, turn_type):
     """
     Find inner and outer trajectory.
 
@@ -40,6 +35,12 @@ def find_inner_outer(trajectory_1, trajectory_2, turn_type):
         Trajectory 1.
     trajectory_2 : np.array
         Trajectory 2.
+    id_1 : int
+        ID of trajectory 1.
+    id_2 : int
+        ID of trajectory 2.
+    turn_type : str
+        Turn type.
 
     Returns
     -------
@@ -47,6 +48,10 @@ def find_inner_outer(trajectory_1, trajectory_2, turn_type):
         Inner trajectory.
     outer_trajectory : np.array
         Outer trajectory.
+    id_inner : int
+        ID of inner trajectory.
+    id_outer : int
+        ID of outer trajectory.
     """
     trajectory_com = compute_center_of_mass_trajectory([trajectory_1, trajectory_2])
     _, [trajectory_1_aligned, trajectory_2_aligned] = (
@@ -67,22 +72,30 @@ def find_inner_outer(trajectory_1, trajectory_2, turn_type):
         trajectory_right = trajectory_1
         trajectory_left_aligned = trajectory_2_aligned
         trajectory_right_aligned = trajectory_1_aligned
+        id_left = id_2
+        id_right = id_1
     else:
         trajectory_left = trajectory_1
         trajectory_right = trajectory_2
         trajectory_left_aligned = trajectory_1_aligned
         trajectory_right_aligned = trajectory_2_aligned
+        id_left = id_1
+        id_right = id_2
 
     trajectory_inner = trajectory_right
     trajectory_outer = trajectory_left
     trajectory_inner_aligned = trajectory_right_aligned
     trajectory_outer_aligned = trajectory_left_aligned
+    id_inner = id_right
+    id_outer = id_left
 
     if turn_type == "left":
         trajectory_inner = trajectory_left
         trajectory_outer = trajectory_right
         trajectory_inner_aligned = trajectory_left_aligned
         trajectory_outer_aligned = trajectory_right_aligned
+        id_inner = id_left
+        id_outer = id_right
 
     # fig, axes = plt.subplots(1, 2)
 
@@ -114,12 +127,16 @@ def find_inner_outer(trajectory_1, trajectory_2, turn_type):
     # axes[0].legend()
     # plt.show()
 
-    return trajectory_inner, trajectory_outer
+    return trajectory_inner, trajectory_outer, id_inner, id_outer
 
 
 if __name__ == "__main__":
     source_to_sink_groups = pickle_load(
         "../data/intermediate/02_02_source_to_sink_groups_diamor.pkl"
+    )
+
+    filtered_trajectories = pickle_load(
+        "../data/intermediate/02_07_filtered_trajectories_diamor.pkl"
     )
 
     meta_trajectories = {}
@@ -131,6 +148,9 @@ if __name__ == "__main__":
         distances[day] = {}
 
         for (source, sink), groups in tqdm(source_to_sink_groups[day].items()):
+
+            if (source, sink) not in filtered_trajectories[day]:
+                continue
 
             turn_type = TURN_TYPE_DIAMOR[day][(source, sink)]
 
@@ -154,10 +174,14 @@ if __name__ == "__main__":
 
             for dyad in dyads:
 
-                trajectory_innner, trajectory_outer = find_inner_outer(
-                    dyad["members"][0]["trajectory_source_to_sink"],
-                    dyad["members"][1]["trajectory_source_to_sink"],
-                    turn_type,
+                trajectory_innner, trajectory_outer, id_inner, id_outer = (
+                    find_inner_outer(
+                        dyad["members"][0]["trajectory_source_to_sink"],
+                        dyad["members"][1]["trajectory_source_to_sink"],
+                        dyad["members"][0]["id"],
+                        dyad["members"][1]["id"],
+                        turn_type,
+                    )
                 )
 
                 average_trajectory_inner = compute_space_bin_average_trajectory(
@@ -175,10 +199,18 @@ if __name__ == "__main__":
                     time="average",
                 )
 
+                if (dyad["id"], id_inner) not in filtered_trajectories[day][
+                    (source, sink)
+                ] or (dyad["id"], id_outer) not in filtered_trajectories[day][
+                    (source, sink)
+                ]:
+                    continue
+
                 inner_trajectories.append(average_trajectory_inner)
                 outer_trajectories.append(average_trajectory_outer)
                 com_trajectories.append(average_trajectory_com)
 
+                # compute interpersonal distance
                 d = compute_average_interpersonal_distance(
                     trajectory_innner, trajectory_outer
                 )
@@ -190,43 +222,14 @@ if __name__ == "__main__":
             inner_trajectories = np.array(inner_trajectories)
             outer_trajectories = np.array(outer_trajectories)
             com_trajectories = np.array(com_trajectories)
-
-            if len(inner_trajectories) < MIN_N_TRAJECTORIES:
-                continue
-            if len(outer_trajectories) < MIN_N_TRAJECTORIES:
-                continue
-            if len(com_trajectories) < MIN_N_TRAJECTORIES:
-                continue
-
-            good_inner_trajectories = inner_trajectories
-            good_outer_trajectories = outer_trajectories
-            good_com_trajectories = com_trajectories
-
-            # good_inner_trajectories = filter_bad_trajectories(
-            #     inner_trajectories, CELL_SIZE, MIN_TRAJECTORIES_BAD, RATIO_BAD_CELLS
-            # )
-            # good_outer_trajectories = filter_bad_trajectories(
-            #     outer_trajectories, CELL_SIZE, MIN_TRAJECTORIES_BAD, RATIO_BAD_CELLS
-            # )
-            # good_com_trajectories = filter_bad_trajectories(
-            #     com_trajectories, CELL_SIZE, MIN_TRAJECTORIES_BAD, RATIO_BAD_CELLS
-            # )
-
-            # if len(good_inner_trajectories) < MIN_N_TRAJECTORIES:
-            #     continue
-            # if len(good_outer_trajectories) < MIN_N_TRAJECTORIES:
-            #     continue
-            # if len(good_com_trajectories) < MIN_N_TRAJECTORIES:
-            #     continue
-
             all_trajectories.extend(inner_trajectories)
             all_trajectories.extend(outer_trajectories)
             all_trajectories = np.array(all_trajectories)
 
-            meta_trajectory_inner = np.nanmean(good_inner_trajectories, axis=0)
-            meta_trajectory_outer = np.nanmean(good_outer_trajectories, axis=0)
+            meta_trajectory_inner = np.nanmean(inner_trajectories, axis=0)
+            meta_trajectory_outer = np.nanmean(outer_trajectories, axis=0)
             meta_trajectory_all = np.nanmean(all_trajectories, axis=0)
-            meta_trajectory_com = np.nanmean(good_com_trajectories, axis=0)
+            meta_trajectory_com = np.nanmean(com_trajectories, axis=0)
 
             meta_trajectories[day][(source, sink)]["inner"] = meta_trajectory_inner
             meta_trajectories[day][(source, sink)]["outer"] = meta_trajectory_outer
@@ -235,7 +238,7 @@ if __name__ == "__main__":
 
             fig, ax = plt.subplots(figsize=(12, 6))
 
-            for trajectory in good_inner_trajectories:
+            for trajectory in inner_trajectories:
                 ax.plot(
                     trajectory[:, 1],
                     trajectory[:, 2],
@@ -244,7 +247,7 @@ if __name__ == "__main__":
                     alpha=0.3,
                 )
 
-            for trajectory in good_outer_trajectories:
+            for trajectory in outer_trajectories:
                 ax.plot(
                     trajectory[:, 1],
                     trajectory[:, 2],

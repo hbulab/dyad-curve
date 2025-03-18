@@ -104,6 +104,6 @@ if __name__ == "__main__":
 
             plt.tight_layout()
             plt.savefig(
-                f"../data/figures/02_11_osculating_circles/{day}_{source}_{sink}.pdf"
+                f"../data/figures/02_12_osculating_circles/{day}_{source}_{sink}.pdf"
             )
             plt.close()

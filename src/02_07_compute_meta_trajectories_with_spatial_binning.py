@@ -32,10 +32,12 @@ if __name__ == "__main__":
     )
 
     meta_trajectories = {}
+    filtered_trajectories = {}
 
     for day in ["06", "08"]:
 
         meta_trajectories[day] = {}
+        filtered_trajectories[day] = {}
 
         for (source, sink), groups in tqdm(source_to_sink_groups[day].items()):
 
@@ -66,6 +68,7 @@ if __name__ == "__main__":
                 size_groups = filter_groups_by_size(groups, size)
 
                 source_to_sink_trajectories = []
+                ids = []
 
                 for group in size_groups:
 
@@ -77,6 +80,7 @@ if __name__ == "__main__":
                             trajectory, n_points_trajectory, time="average"
                         )
                         source_to_sink_trajectories.append(average_trajectory)
+                        ids.append((group["id"], member["id"]))
 
                 source_to_sink_trajectories = np.array(source_to_sink_trajectories)
 
@@ -84,9 +88,9 @@ if __name__ == "__main__":
                     continue
 
                 # good_trajectories = source_to_sink_trajectories
-
-                good_trajectories = filter_bad_trajectories(
+                good_trajectories, good_ids = filter_bad_trajectories(
                     source_to_sink_trajectories,
+                    ids,
                     CELL_SIZE,
                     MIN_TRAJECTORIES_BAD,
                     RATIO_BAD_CELLS,
@@ -94,6 +98,10 @@ if __name__ == "__main__":
 
                 if len(good_trajectories) < MIN_N_TRAJECTORIES:
                     continue
+
+                # keep track of filtered trajectories for dyads
+                if size == 2:
+                    filtered_trajectories[day][(source, sink)] = good_ids
 
                 all_trajectories.extend(good_trajectories)
 
@@ -167,4 +175,9 @@ if __name__ == "__main__":
 
     pickle_save(
         meta_trajectories, "../data/intermediate/02_07_meta_trajectories_diamor.pkl"
+    )
+
+    pickle_save(
+        filtered_trajectories,
+        "../data/intermediate/02_07_filtered_trajectories_diamor.pkl",
     )
