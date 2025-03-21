@@ -4,7 +4,15 @@ This repository contains the code for analyzing the dynamics of individuals and 
 
 ## Installation
 
-Run the script `install.sh` to install the required packages and create the data structure.
+To install the necessary libraries, run the following command.
+
+```bash
+pip install -r requirements.txt
+```
+
+You might want to create a virtual environment to avoid conflicts with other projects.
+
+Run the script `install.sh` to create the data structure.
 
 ```bash
 ./install.sh
