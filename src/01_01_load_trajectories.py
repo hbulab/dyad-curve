@@ -148,6 +148,11 @@ if __name__ == "__main__":
 
                 pedestrian_trajectory = daily_trajectories[pedestrian_id]
 
+                if pedestrian_id not in individual_annotations:
+                    continue
+                if not individual_annotations[pedestrian_id]["non_group"]:
+                    continue
+
                 if not is_trajectory_valid(pedestrian_trajectory):
                     continue
 

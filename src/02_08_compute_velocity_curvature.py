@@ -231,8 +231,10 @@ if __name__ == "__main__":
             marker=colors_markers[i][1],
         )
 
-    bin_centers, bin_edges, means, stds, errors, n_values = compute_binned_values(
-        curvatures[2], velocities[2], n_bins=N_BINS, equal_frequency=True
+    bin_centers, bin_edges, means, stds, errors, _, _, _, n_values = (
+        compute_binned_values(
+            curvatures[2], velocities[2], n_bins=N_BINS, equal_frequency=True
+        )
     )
 
     ax.plot(bin_centers, means, color="black", label="Binned values (all)")
@@ -345,7 +347,7 @@ if __name__ == "__main__":
 
     for size, color in zip([1, 2], ["orange", "blue"]):
 
-        bin_centers, _, means, stds, errors, n_values = compute_binned_values(
+        bin_centers, _, means, stds, errors, _, _, _, n_values = compute_binned_values(
             curvatures[size], velocities[size], n_bins=N_BINS, equal_frequency=True
         )
 
@@ -386,7 +388,7 @@ if __name__ == "__main__":
 
     for size, color in zip([1, 2], ["orange", "blue"]):
 
-        bin_centers, _, means, stds, errors, n_values = compute_binned_values(
+        bin_centers, _, means, stds, errors, _, _, _, n_values = compute_binned_values(
             np.log(curvatures[size]),
             np.log(velocities[size]),
             # velocities[size],
@@ -427,7 +429,7 @@ if __name__ == "__main__":
 
     for size, color in zip([1, 2], ["orange", "blue"]):
 
-        bin_centers, _, means, stds, errors, n_values = compute_binned_values(
+        bin_centers, _, means, stds, errors, _, _, _, n_values = compute_binned_values(
             np.log(curvatures[size]),
             np.log(velocities[size]),
             # velocities[size],
@@ -497,7 +499,7 @@ if __name__ == "__main__":
 
     for size, color in zip([1, 2], ["orange", "blue"]):
 
-        bin_centers, _, means, stds, errors, n_values = compute_binned_values(
+        bin_centers, _, means, stds, errors, _, _, _, n_values = compute_binned_values(
             np.log(1 / curvatures[size]),
             np.log(velocities[size]),
             # velocities[size],

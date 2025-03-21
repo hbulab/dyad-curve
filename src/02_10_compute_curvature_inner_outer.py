@@ -98,10 +98,6 @@ if __name__ == "__main__":
 
                 curvature = np.abs(curvature) * 1000
                 velocity = velocity / 1000
-                # portion of trajectory in straight part
-                straight_portion = (meta_trajectory_position[:, 1] > 20000) & (
-                    meta_trajectory_position[:, 1] < 40000
-                )
 
                 angular_velocity = np.abs(
                     compute_angular_velocity(meta_trajectory_position, WINDOW_SIZE)

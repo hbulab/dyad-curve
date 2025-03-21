@@ -36,33 +36,46 @@ if __name__ == "__main__":
         high_curvature_pairs, on=["id", "time_step"]
     )
 
-    # TEST PLOT
-    trajectory_ids = data_inner_outer_high_curvature["id"].unique()
+    # find data where com is turning or straight
+    turning_pairs = data_inner_outer.loc[
+        (data_inner_outer["type"] == "com") & (data_inner_outer["turning"] == True),
+        ["id", "time_step"],
+    ]
+    data_turning = data_inner_outer.merge(turning_pairs, on=["id", "time_step"])
 
-    n_trajectories = len(trajectory_ids)
-    n_rows = 2
-    n_cols = int(np.ceil(n_trajectories / n_rows))
+    straight_pairs = data_inner_outer.loc[
+        (data_inner_outer["type"] == "com") & (data_inner_outer["straight"] == True),
+        ["id", "time_step"],
+    ]
+    data_straight = data_inner_outer.merge(straight_pairs, on=["id", "time_step"])
 
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 6))
-    axes = axes.flatten()
-    for i, trajectory_id in enumerate(trajectory_ids):
-        for type in ["inner", "outer", "1"]:  # Use actual types in the dataset
-            subset = data_inner_outer_high_curvature[
-                (data_inner_outer_high_curvature["id"] == trajectory_id)
-                & (data_inner_outer_high_curvature["type"] == type)
-            ]
-            axes[i].scatter(subset["x"], subset["y"], label=type, alpha=0.5, s=3)
+    # # TEST PLOT
+    # trajectory_ids = data_inner_outer_high_curvature["id"].unique()
 
-        axes[i].set_title(f"Trajectory {trajectory_id}")
-        axes[i].legend()
-        axes[i].set_aspect("equal")
+    # n_trajectories = len(trajectory_ids)
+    # n_rows = 2
+    # n_cols = int(np.ceil(n_trajectories / n_rows))
 
-    for j in range(i + 1, len(axes)):
-        fig.delaxes(axes[j])
+    # fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 6))
+    # axes = axes.flatten()
+    # for i, trajectory_id in enumerate(trajectory_ids):
+    #     for type in ["inner", "outer", "1"]:  # Use actual types in the dataset
+    #         subset = data_inner_outer_high_curvature[
+    #             (data_inner_outer_high_curvature["id"] == trajectory_id)
+    #             & (data_inner_outer_high_curvature["type"] == type)
+    #         ]
+    #         axes[i].scatter(subset["x"], subset["y"], label=type, alpha=0.5, s=3)
 
-    plt.tight_layout()
-    plt.show()
-    plt.close()
+    #     axes[i].set_title(f"Trajectory {trajectory_id}")
+    #     axes[i].legend()
+    #     axes[i].set_aspect("equal")
+
+    # for j in range(i + 1, len(axes)):
+    #     fig.delaxes(axes[j])
+
+    # plt.tight_layout()
+    # plt.show()
+    # plt.close()
 
     # plot histogram of curvature
     fig, ax = plt.subplots(1, 3, figsize=(12, 4))
@@ -75,8 +88,10 @@ if __name__ == "__main__":
         kde=True,
         ax=ax[0],
         alpha=0.5,
-        binrange=(-12, 0),
+        # binrange=(-12, 0),
         stat="density",
+        common_bins=True,
+        common_norm=False,
     )
 
     sns.histplot(
@@ -87,8 +102,10 @@ if __name__ == "__main__":
         kde=True,
         ax=ax[1],
         alpha=0.5,
-        binrange=(-12, 0),
+        # binrange=(-12, 0),
         stat="density",
+        common_bins=True,
+        common_norm=False,
     )
 
     sns.histplot(
@@ -99,8 +116,10 @@ if __name__ == "__main__":
         kde=True,
         ax=ax[2],
         alpha=0.5,
-        binrange=(-12, 0),
+        # binrange=(-12, 0),
         stat="density",
+        common_bins=True,
+        common_norm=False,
     )
 
     ax[0].set_title("All")
@@ -159,38 +178,40 @@ if __name__ == "__main__":
 
     # plot inner velocity vs outer velocity
 
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
 
-    ax.scatter(
-        data_inner_outer_high_curvature[
-            data_inner_outer_high_curvature["type"] == "inner"
-        ]["velocity"],
-        data_inner_outer_high_curvature[
-            data_inner_outer_high_curvature["type"] == "outer"
-        ]["velocity"],
-        s=10,
-        alpha=0.5,
-    )
+    for i, (data, label) in enumerate(
+        zip(
+            [data_inner_outer, data_turning, data_straight],
+            ["All", "Turning", "Straight"],
+        )
+    ):
 
-    # fit piecewise linear
-    params, r_squared = fit_piecewise_linear(
-        data_inner_outer_high_curvature[
-            data_inner_outer_high_curvature["type"] == "inner"
-        ]["velocity"],
-        data_inner_outer_high_curvature[
-            data_inner_outer_high_curvature["type"] == "outer"
-        ]["velocity"],
-    )
-    plot_piecewise_linear(0.5, 1.4, *params, ax, label=f"$R^2 = {r_squared:.2f}$")
+        axes[i].scatter(
+            data[data["type"] == "inner"]["velocity"],
+            data[data["type"] == "outer"]["velocity"],
+            s=10,
+            alpha=0.5,
+        )
 
-    ax.plot([0.5, 1.4], [0.5, 1.4], color="black", linestyle="--")
+        # fit piecewise linear
+        params, r_squared = fit_piecewise_linear(
+            data[data["type"] == "inner"]["velocity"],
+            data[data["type"] == "outer"]["velocity"],
+        )
+        plot_piecewise_linear(
+            0.5, 1.4, *params, axes[i], label=f"$R^2 = {r_squared:.2f}$"
+        )
 
-    ax.set_xlabel("Inner velocity [m/s]")
-    ax.set_ylabel("Outer velocity [m/s]")
-    ax.set_aspect("equal")
-    ax.grid(color="gray", linestyle="--", linewidth=0.5)
+        axes[i].plot([0.5, 1.4], [0.5, 1.4], color="black", linestyle="--")
 
-    ax.legend()
+        axes[i].set_xlabel("Inner velocity [m/s]")
+        axes[i].set_ylabel("Outer velocity [m/s]")
+        axes[i].set_title(label)
+        axes[i].set_aspect("equal")
+        axes[i].grid(color="gray", linestyle="--", linewidth=0.5)
+
+        axes[i].legend()
 
     plt.savefig("../data/figures/02_11_inner_outer_velocity.pdf")
     plt.close()
@@ -934,13 +955,127 @@ if __name__ == "__main__":
             color=color,
         )
 
-    plt.xlabel("$\\log(\\omega_{inner})$")
-    plt.ylabel("$\\log(\\omega_{outer})$")
+    plt.xlabel("$\\log(\\omega_{inner})$ rotated by 45 degrees")
+    plt.ylabel("$\\log(\\omega_{outer})$ rotated by 45 degrees")
 
     plt.legend()
     plt.grid(color="gray", linestyle="--", linewidth=0.5)
 
     plt.savefig("../data/figures/02_11_angular_velocity_inner_outer_binned_rotated.pdf")
+    plt.close()
+
+    # plot binned angular velocity inner/outer rotated by 45 degrees
+    fig, axes = plt.subplots(3, 1, figsize=(6, 18))
+
+    for i, (data, label) in enumerate(
+        zip(
+            [data_inner_outer, data_turning, data_straight],
+            ["All", "Turning", "Straight"],
+        )
+    ):
+
+        x1 = np.log(
+            data[data["type"] == "inner"]["angular_velocity_from_curvature"].values
+        )
+        y1 = data[data["type"] == "outer"]["angular_velocity_from_curvature"].values
+
+        x2 = np.log(
+            data[data["type"] == "outer"]["angular_velocity_from_curvature"].values
+        )
+        y2 = data[data["type"] == "inner"]["angular_velocity_from_curvature"].values
+
+        # center = np.array([0, 0])
+        # angle = 0
+
+        # x_rot1 = np.cos(angle) * x1 - np.sin(angle) * y1
+        # y_rot1 = np.sin(angle) * x1 + np.cos(angle) * y1
+
+        # x_rot2 = np.cos(angle) * x2 - np.sin(angle) * y2
+        # y_rot2 = np.sin(angle) * x2 + np.cos(angle) * y2
+
+        (
+            bin_centers_1,
+            _,
+            means_rot1,
+            stds_rot1,
+            errors_rot1,
+            _,
+            _,
+            _,
+            n_values,
+        ) = compute_binned_values(
+            x1,
+            y1,
+            n_bins=8,
+            equal_frequency=False,
+        )
+
+        (
+            bin_centers_2,
+            _,
+            means_rot2,
+            stds_rot2,
+            errors_rot2,
+            _,
+            _,
+            _,
+            n_values,
+        ) = compute_binned_values(
+            x2,
+            y2,
+            n_bins=8,
+            equal_frequency=False,
+        )
+
+        axes[i].errorbar(
+            bin_centers_1,
+            means_rot1,
+            yerr=errors_rot1,
+            fmt="-o",
+            capsize=2,
+            color="blue",
+            label="$\\omega_{outer}$ vs $\\log(\\omega_{inner})$",
+        )
+
+        # axes[i].scatter(
+        #     x1,
+        #     y1,
+        #     s=10,
+        #     alpha=0.5,
+        #     color=color,
+        # )
+
+        axes[i].errorbar(
+            bin_centers_2,
+            means_rot2,
+            yerr=errors_rot2,
+            fmt="-o",
+            capsize=2,
+            color="red",
+            label="$\\omega_{inner}$ vs $\\log(\\omega_{outer})$",
+        )
+        # axes[i].scatter(
+        #     x2,
+        #     y2,
+        #     s=10,
+        #     alpha=0.5,
+        #     color=color,
+        # )
+
+        # add y = exp(x) line
+        x = np.linspace(-12, -1, 100)
+        y = np.exp(x)
+        axes[i].plot(x, y, color="black", linestyle="--")
+
+        axes[i].set_title(label)
+
+        axes[i].grid(color="gray", linestyle="--", linewidth=0.5)
+
+        axes[i].legend()
+
+    plt.savefig(
+        "../data/figures/02_11_angular_velocity_inner_outer_binned_rotated_all.pdf"
+    )
     plt.close()
 
     # plot  angular velocity vs log curvature (binned)
@@ -1042,7 +1177,7 @@ if __name__ == "__main__":
         color="black",
     )
 
-    ax[0].set_xlabel("$\\omega_{inner}$ [rad/s]")
+    ax[0].set_xlabel("$\\log(\\omega_{inner})$")
     ax[0].set_ylabel("$\\omega_{inner} - \\omega_{outer}$ [rad/s]")
 
     ax[0].grid(color="gray", linestyle="--", linewidth=0.5)
@@ -1096,12 +1231,111 @@ if __name__ == "__main__":
         color="black",
     )
 
-    ax[1].set_xlabel("$\\omega_{outer}$ [rad/s]")
+    ax[1].set_xlabel("$\\log(\\omega_{outer})$")
     ax[1].set_ylabel("$\\omega_{inner} - \\omega_{outer}$ [rad/s]")
 
     ax[1].grid(color="gray", linestyle="--", linewidth=0.5)
 
     plt.savefig("../data/figures/02_11_angular_velocity_difference.pdf")
+
+    # plot binned velocity vs log kappa
+    fig, axes = plt.subplots(3, 1, figsize=(12, 18))
+    for i, (data, label) in enumerate(
+        zip(
+            [data_inner_outer, data_turning, data_straight],
+            ["All", "Turning", "Straight"],
+        )
+    ):
+
+        for pos, color in zip(
+            ["inner", "outer", "1", "2"], ["blue", "red", "green", "orange"]
+        ):
+
+            bin_centers, _, means, stds, errors, _, _, _, n_values = (
+                compute_binned_values(
+                    np.log(data[data["type"] == pos]["curvature"]),
+                    data[data["type"] == pos]["velocity"],
+                    n_bins=N_BINS,
+                    equal_frequency=False,
+                )
+            )
+
+            axes[i].plot(bin_centers, means, label=f"{pos}", color=color)
+
+            axes[i].fill_between(
+                bin_centers,
+                means - stds,
+                means + stds,
+                alpha=0.3,
+                color=color,
+            )
+            axes[i].errorbar(
+                bin_centers,
+                means,
+                yerr=errors,
+                fmt="o",
+                capsize=2,
+                color=color,
+            )
+
+        axes[i].set_xlabel("$\\log(\\kappa)$")
+        axes[i].set_ylabel("Velocity [m/s]")
+        axes[i].legend()
+        axes[i].grid(color="gray", linestyle="--", linewidth=0.5)
+        axes[i].set_title(label)
+
+    plt.savefig(f"../data/figures/02_11_velocity_curvature_binned.pdf")
+    plt.close()
+
+    # plot binned log velocity vs log kappa
+    fig, axes = plt.subplots(3, 1, figsize=(12, 18))
+
+    for i, (data, label) in enumerate(
+        zip(
+            [data_inner_outer, data_turning, data_straight],
+            ["All", "Turning", "Straight"],
+        )
+    ):
+
+        for pos, color in zip(
+            ["inner", "outer", "1", "2"], ["blue", "red", "green", "orange"]
+        ):
+
+            bin_centers, _, means, stds, errors, _, _, _, n_values = (
+                compute_binned_values(
+                    np.log(data[data["type"] == pos]["curvature"]),
+                    np.log(data[data["type"] == pos]["velocity"]),
+                    n_bins=N_BINS,
+                    equal_frequency=False,
+                )
+            )
+
+            axes[i].plot(bin_centers, means, label=f"{pos}", color=color)
+
+            axes[i].fill_between(
+                bin_centers,
+                means - stds,
+                means + stds,
+                alpha=0.3,
+                color=color,
+            )
+            axes[i].errorbar(
+                bin_centers,
+                means,
+                yerr=errors,
+                fmt="o",
+                capsize=2,
+                color=color,
+            )
+
+        axes[i].set_xlabel("$\\log(\\kappa)$")
+        axes[i].set_ylabel("$\\log(v)$")
+        axes[i].legend()
+        axes[i].grid(color="gray", linestyle="--", linewidth=0.5)
+        axes[i].set_title(label)
+
+    plt.savefig(f"../data/figures/02_11_velocity_curvature_binned_log_velocity.pdf")
+    plt.close()
 
     # print sorted interpersonal_distances
     print(
