@@ -16,10 +16,10 @@ small_y = y < 0.1
 x[small_x] *= 1000
 y[small_y] *= 1000
 
-bin_centers_x, pdf_edges_x, means_y, stds_y, errors_y, n_values_y = (
+bin_centers_x, pdf_edges_x, means_y, stds_y, errors_y, _, _, _, n_values_y = (
     compute_binned_values(x, y, 20)
 )
-bin_centers_y, pdf_edges_y, means_x, stds_x, errors_x, n_values_x = (
+bin_centers_y, pdf_edges_y, means_x, stds_x, errors_x, _, _, _, n_values_x = (
     compute_binned_values(y, x, 20)
 )
 
